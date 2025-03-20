@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for Image Classifier and Enhancer application
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: Vaishnav-N11484209
+
+Resources:
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${AWS::StackName}-sg"
+      GroupDescription: Security group for EC2 instance
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3001
+          CidrIp: 0.0.0.0/0
+      VpcId: vpc-007bab53289655834
+
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.xlarge
+      ImageId: ami-0892a9c01908fafd1
+      KeyName: !Ref KeyName
+      SecurityGroupIds: 
+        - !Ref EC2SecurityGroup
+      SubnetId: subnet-04ca053dcbe5f49cc
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update -y
+          apt-get install -y docker.io awscli
+          systemctl start docker
+          systemctl enable docker
+          usermod -aG docker ubuntu
+
+          # Create Docker network
+          docker network create myapp-network
+
+          # Login to ECR
+          aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com
+
+          # Pull Docker images
+          docker pull 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11484209-2ndassignmenttry:backend-latest
+          docker pull 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11484209-2ndassignmenttry:frontend-latest
+
+          # Fetch parameters from Parameter Store
+          S3_BUCKET_NAME=$(aws ssm get-parameter --name "/n11484209/S3_BUCKET_NAME" --query "Parameter.Value" --output text)
+          COGNITO_CLIENT_ID=$(aws ssm get-parameter --name "/n11484209/COGNITO_CLIENT_ID" --query "Parameter.Value" --output text)
+          COGNITO_USER_POOL_ID=$(aws ssm get-parameter --name "/n11484209/COGNITO_USER_POOL_ID" --query "Parameter.Value" --output text)
+          COGNITO_DOMAIN=$(aws ssm get-parameter --name "/n11484209/COGNITO_DOMAIN" --query "Parameter.Value" --output text)
+          GOOGLE_CLIENT_ID=$(aws ssm get-parameter --name "/n11484209/GOOGLE_CLIENT_ID" --query "Parameter.Value" --output text)
+          USER_TABLE_NAME=$(aws ssm get-parameter --name "/n11484209/USER_TABLE_NAME" --query "Parameter.Value" --output text)
+          ELASTICACHE_ENDPOINT=$(aws ssm get-parameter --name "/n11484209/ELASTICACHE_ENDPOINT" --query "Parameter.Value" --output text)
+          FRONTEND_URL=$(aws ssm get-parameter --name "/n11484209/FRONTEND_URL" --query "Parameter.Value" --output text)
+          API_URL=$(aws ssm get-parameter --name "/n11484209/API_URL" --query "Parameter.Value" --output text)
+          WS_URL=$(aws ssm get-parameter --name "/n11484209/WS_URL" --query "Parameter.Value" --output text)
+
+          # Fetch secrets from Secrets Manager
+          APP_SECRETS=$(aws secretsmanager get-secret-value --secret-id n11484209-app-secrets --query SecretString --output text)
+
+          # Run backend container
+          docker run -d --name backend-container --network myapp-network -p 3001:3001 \
+            -e SESSION_SECRET=$(echo $APP_SECRETS | jq -r .SESSION_SECRET) \
+            -e AWS_REGION=ap-southeast-2 \
+            -e S3_BUCKET_NAME=$S3_BUCKET_NAME \
+            -e COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID \
+            -e COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID \
+            -e COGNITO_DOMAIN=$COGNITO_DOMAIN \
+            -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID \
+            -e USER_TABLE_NAME=$USER_TABLE_NAME \
+            -e ELASTICACHE_ENDPOINT=$ELASTICACHE_ENDPOINT \
+            -e FRONTEND_URL=$FRONTEND_URL \
+            -e API_URL=$API_URL \
+            -e WS_URL=$WS_URL \
+            901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11484209-2ndassignmenttry:backend-latest
+
+          # Run frontend container
+          docker run -d --name frontend-container --network myapp-network -p 3000:80 \
+            -e REACT_APP_API_URL=$API_URL \
+            -e REACT_APP_WS_URL=$WS_URL \
+            901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11484209-2ndassignmenttry:frontend-latest
+
+  MyDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: Z0139834403WUPGWC3UN
+      Name: n11484209.cab432.com.
+      Type: A
+      TTL: 300
+      ResourceRecords:
+        - !GetAtt MyEC2Instance.PublicIp
+
+Outputs:
+  EC2InstancePublicIP:
+    Description: The public IP address of the EC2 instance.
+    Value: !GetAtt MyEC2Instance.PublicIp
+
+  WebsiteURL:
+    Description: The URL of the website
+    Value: !Sub "https://n11484209.cab432.com"

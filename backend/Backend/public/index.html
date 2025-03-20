@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Classifier and Enhancer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <h1 class="text-3xl font-bold text-center mb-8">Image Classifier and Enhancer</h1>
+
+        <!-- Login Form -->
+        <div id="login-form" class="bg-white p-8 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-bold mb-4">Login</h2>
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label for="username" class="block text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" class="mt-1 p-2 border rounded w-full">
+                </div>
+                <div class="mb-4">
+                    <label for="password" class="block text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" class="mt-1 p-2 border rounded w-full">
+                </div>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Login</button>
+            </form>
+        </div>
+
+        <!-- User Info -->
+        <div id="user-info" class="bg-white p-4 rounded-lg shadow-md mb-4 hidden">
+            <!-- User info will be populated here by JavaScript -->
+        </div>
+
+        <!-- Image Upload Form -->
+        <div id="upload-form" class="bg-white p-8 rounded-lg shadow-md hidden">
+            <h2 class="text-2xl font-bold mb-4">Upload an Image</h2>
+            <form id="uploadForm">
+                <div class="mb-4">
+                    <label for="image" class="block text-gray-700">Select Image</label>
+                    <input type="file" id="image" name="images" accept="image/*" class="mt-1 p-2 border rounded w-full" multiple>
+                </div>
+                <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Upload and Process</button>
+            </form>
+        </div>
+
+        <!-- Logout Button -->
+        <div id="logout-div" class="mb-4 hidden">
+            <button id="logoutButton" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
+        </div>
+
+        <!-- Results -->
+        <div id="result" class="mt-8"></div>
+    </div>
+
+    <script src="/js/client.js"></script>
+</body>
+</html>
